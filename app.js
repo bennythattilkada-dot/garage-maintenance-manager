@@ -1,4 +1,17 @@
 const storageKey = "garage-maintenance-manager-v1";
+const sessionKey = "garage-maintenance-session-v1";
+
+const rolePermissions = {
+  admin: ["manageJobs", "manageCustomers", "manageTechnicians", "manageInventory", "manageInvoices", "manageUsers", "resetData"],
+  advisor: ["manageJobs", "manageCustomers", "manageInventory", "manageInvoices"],
+  technician: ["manageTechnicians"]
+};
+
+const roleLabels = {
+  admin: "Admin",
+  advisor: "Service advisor",
+  technician: "Technician"
+};
 
 const sampleData = {
   jobs: [
@@ -63,10 +76,16 @@ const sampleData = {
       clockIn: new Date(Date.now() - 28800000).toISOString(),
       clockOut: new Date(Date.now() - 10800000).toISOString()
     }
+  ],
+  users: [
+    { id: crypto.randomUUID(), name: "Garage Admin", username: "admin", password: "admin123", role: "admin" },
+    { id: crypto.randomUUID(), name: "Service Advisor", username: "advisor", password: "advisor123", role: "advisor" },
+    { id: crypto.randomUUID(), name: "Technician User", username: "tech", password: "tech123", role: "technician" }
   ]
 };
 
 let state = loadState();
+let currentUser = loadSession();
 let activeView = "dashboard";
 let query = "";
 
@@ -81,11 +100,44 @@ function loadState() {
   const loaded = saved ? JSON.parse(saved) : structuredClone(sampleData);
   loaded.technicians = loaded.technicians || structuredClone(sampleData.technicians);
   loaded.shifts = loaded.shifts || [];
+  loaded.users = loaded.users || structuredClone(sampleData.users);
   return loaded;
+}
+
+function loadSession() {
+  const saved = localStorage.getItem(sessionKey);
+  if (!saved) return null;
+  const session = JSON.parse(saved);
+  return session.userId ? session : null;
 }
 
 function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+}
+
+function saveSession(user) {
+  currentUser = { userId: user.id };
+  localStorage.setItem(sessionKey, JSON.stringify(currentUser));
+}
+
+function clearSession() {
+  currentUser = null;
+  localStorage.removeItem(sessionKey);
+}
+
+function getCurrentUser() {
+  if (!currentUser) return null;
+  return state.users.find((user) => user.id === currentUser.userId) || null;
+}
+
+function can(permission) {
+  const user = getCurrentUser();
+  if (!user) return false;
+  return rolePermissions[user.role]?.includes(permission);
+}
+
+function requirePermission(permission) {
+  return can(permission);
 }
 
 function matchesSearch(...values) {
@@ -101,6 +153,7 @@ function statusClass(status) {
 }
 
 function setView(view) {
+  if (view === "users" && !can("manageUsers")) view = "dashboard";
   activeView = view;
   document.querySelectorAll(".view").forEach((node) => node.classList.remove("active"));
   document.querySelector(`#${view}View`).classList.add("active");
@@ -112,6 +165,7 @@ function setView(view) {
 }
 
 function render() {
+  renderAuth();
   renderMetrics();
   renderTodayJobs();
   renderLowStock();
@@ -120,6 +174,19 @@ function render() {
   renderTechnicians();
   renderParts();
   renderInvoices();
+  renderUsers();
+}
+
+function renderAuth() {
+  const user = getCurrentUser();
+  document.body.classList.toggle("locked", !user);
+  document.querySelectorAll("[data-permission]").forEach((node) => {
+    node.hidden = !can(node.dataset.permission);
+  });
+  document.querySelector("#userChip").innerHTML = user
+    ? `<strong>${user.name}</strong><span>${roleLabels[user.role]}</span>`
+    : "";
+  document.querySelector("#resetData").hidden = !can("resetData");
 }
 
 function renderMetrics() {
@@ -192,8 +259,8 @@ function renderJobs() {
           <td>${money.format(Number(job.labor) + Number(job.parts))}</td>
           <td>
             <div class="row-actions">
-              <button title="Advance status" aria-label="Advance status" data-next-job="${job.id}">&gt;</button>
-              <button title="Delete job" aria-label="Delete job" data-delete-job="${job.id}">x</button>
+              <button title="Advance status" aria-label="Advance status" data-next-job="${job.id}" ${can("manageJobs") ? "" : "disabled"}>&gt;</button>
+              <button title="Delete job" aria-label="Delete job" data-delete-job="${job.id}" ${can("manageJobs") ? "" : "disabled"}>x</button>
             </div>
           </td>
         </tr>`
@@ -290,8 +357,8 @@ function renderParts() {
           <td>${money.format(part.cost)}</td>
           <td>
             <div class="row-actions">
-              <button title="Add one" aria-label="Add one" data-add-part="${part.id}">+</button>
-              <button title="Use one" aria-label="Use one" data-use-part="${part.id}">-</button>
+              <button title="Add one" aria-label="Add one" data-add-part="${part.id}" ${can("manageInventory") ? "" : "disabled"}>+</button>
+              <button title="Use one" aria-label="Use one" data-use-part="${part.id}" ${can("manageInventory") ? "" : "disabled"}>-</button>
             </div>
           </td>
         </tr>`
@@ -319,6 +386,28 @@ function renderInvoices() {
     : `<div class="empty">No matching invoices.</div>`;
 }
 
+function renderUsers() {
+  const users = state.users.filter((user) => matchesSearch(user.name, user.username, roleLabels[user.role]));
+  document.querySelector("#usersGrid").innerHTML = users.length
+    ? users
+        .map(
+          (user) => `
+        <article class="user-card">
+          <h3>${user.name}</h3>
+          <p class="meta">${user.username} / ${roleLabels[user.role]}</p>
+          <div class="privilege-list">
+            ${(rolePermissions[user.role] || []).map((permission) => `<span class="pill blue">${formatPermission(permission)}</span>`).join("")}
+          </div>
+          <div class="card-footer">
+            <span class="meta">Password: ${user.password}</span>
+            <button class="secondary" data-delete-user="${user.id}" ${getCurrentUser()?.id === user.id ? "disabled" : ""}>Delete</button>
+          </div>
+        </article>`
+        )
+        .join("")
+    : `<div class="empty">No matching users.</div>`;
+}
+
 document.querySelector("#navTabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-view]");
   if (button) setView(button.dataset.view);
@@ -333,15 +422,38 @@ document.body.addEventListener("click", (event) => {
   const usePart = event.target.closest("[data-use-part]");
   const clockIn = event.target.closest("[data-clock-in]");
   const clockOut = event.target.closest("[data-clock-out]");
+  const deleteUser = event.target.closest("[data-delete-user]");
 
-  if (openButton) document.querySelector(`#${openButton.dataset.open}`).showModal();
+  if (openButton && canOpenDialog(openButton.dataset.open)) document.querySelector(`#${openButton.dataset.open}`).showModal();
   if (jumpButton) setView(jumpButton.dataset.viewJump);
-  if (nextJob) advanceJob(nextJob.dataset.nextJob);
-  if (deleteJob) deleteJobById(deleteJob.dataset.deleteJob);
-  if (addPart) adjustPart(addPart.dataset.addPart, 1);
-  if (usePart) adjustPart(usePart.dataset.usePart, -1);
-  if (clockIn) clockInTechnician(clockIn.dataset.clockIn);
-  if (clockOut) clockOutTechnician(clockOut.dataset.clockOut);
+  if (nextJob && requirePermission("manageJobs")) advanceJob(nextJob.dataset.nextJob);
+  if (deleteJob && requirePermission("manageJobs")) deleteJobById(deleteJob.dataset.deleteJob);
+  if (addPart && requirePermission("manageInventory")) adjustPart(addPart.dataset.addPart, 1);
+  if (usePart && requirePermission("manageInventory")) adjustPart(usePart.dataset.usePart, -1);
+  if (clockIn && requirePermission("manageTechnicians")) clockInTechnician(clockIn.dataset.clockIn);
+  if (clockOut && requirePermission("manageTechnicians")) clockOutTechnician(clockOut.dataset.clockOut);
+  if (deleteUser && requirePermission("manageUsers")) deleteUserById(deleteUser.dataset.deleteUser);
+});
+
+document.querySelector("#loginForm").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.currentTarget));
+  const user = state.users.find(
+    (item) => item.username.toLowerCase() === data.username.toLowerCase() && item.password === data.password
+  );
+  if (!user) {
+    document.querySelector("#loginError").textContent = "Invalid username or password.";
+    return;
+  }
+  document.querySelector("#loginError").textContent = "";
+  saveSession(user);
+  event.currentTarget.reset();
+  setView("dashboard");
+});
+
+document.querySelector("#logoutButton").addEventListener("click", () => {
+  clearSession();
+  render();
 });
 
 document.querySelector("#searchInput").addEventListener("input", (event) => {
@@ -350,12 +462,15 @@ document.querySelector("#searchInput").addEventListener("input", (event) => {
 });
 
 document.querySelector("#resetData").addEventListener("click", () => {
+  if (!can("resetData")) return;
   state = structuredClone(sampleData);
   saveState();
+  clearSession();
   render();
 });
 
 document.querySelector("#jobForm").addEventListener("submit", (event) => {
+  if (!can("manageJobs")) return;
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   state.jobs.unshift({ id: crypto.randomUUID(), ...data, labor: Number(data.labor), parts: Number(data.parts) });
@@ -366,6 +481,7 @@ document.querySelector("#jobForm").addEventListener("submit", (event) => {
 });
 
 document.querySelector("#customerForm").addEventListener("submit", (event) => {
+  if (!can("manageCustomers")) return;
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   upsertCustomer(data.name, data.phone, data.vehicle, data.plate);
@@ -375,6 +491,7 @@ document.querySelector("#customerForm").addEventListener("submit", (event) => {
 });
 
 document.querySelector("#partForm").addEventListener("submit", (event) => {
+  if (!can("manageInventory")) return;
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   state.parts.unshift({
@@ -391,6 +508,7 @@ document.querySelector("#partForm").addEventListener("submit", (event) => {
 });
 
 document.querySelector("#technicianForm").addEventListener("submit", (event) => {
+  if (!can("manageTechnicians")) return;
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   state.technicians.unshift({ id: crypto.randomUUID(), name: data.name, specialty: data.specialty });
@@ -400,6 +518,7 @@ document.querySelector("#technicianForm").addEventListener("submit", (event) => 
 });
 
 document.querySelector("#invoiceForm").addEventListener("submit", (event) => {
+  if (!can("manageInvoices")) return;
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   state.invoices.unshift({ id: crypto.randomUUID(), ...data, amount: Number(data.amount) });
@@ -407,6 +526,36 @@ document.querySelector("#invoiceForm").addEventListener("submit", (event) => {
   form.reset();
   render();
 });
+
+document.querySelector("#userForm").addEventListener("submit", (event) => {
+  if (!can("manageUsers")) return;
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form));
+  const usernameExists = state.users.some((user) => user.username.toLowerCase() === data.username.toLowerCase());
+  if (usernameExists) return;
+  state.users.unshift({
+    id: crypto.randomUUID(),
+    name: data.name,
+    username: data.username,
+    password: data.password,
+    role: data.role
+  });
+  saveState();
+  form.reset();
+  render();
+});
+
+function canOpenDialog(dialogId) {
+  const permissions = {
+    jobDialog: "manageJobs",
+    customerDialog: "manageCustomers",
+    technicianDialog: "manageTechnicians",
+    partDialog: "manageInventory",
+    invoiceDialog: "manageInvoices",
+    userDialog: "manageUsers"
+  };
+  return can(permissions[dialogId]);
+}
 
 function upsertCustomer(name, phone, vehicle, plate) {
   const existing = state.customers.find((customer) => customer.name.toLowerCase() === name.toLowerCase() && customer.plate === plate);
@@ -439,6 +588,13 @@ function adjustPart(id, amount) {
   const part = state.parts.find((item) => item.id === id);
   if (!part) return;
   part.qty = Math.max(0, Number(part.qty) + amount);
+  saveState();
+  render();
+}
+
+function deleteUserById(id) {
+  if (getCurrentUser()?.id === id) return;
+  state.users = state.users.filter((user) => user.id !== id);
   saveState();
   render();
 }
@@ -500,6 +656,14 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatPermission(permission) {
+  return permission
+    .replace("manage", "")
+    .replace("resetData", "Reset data")
+    .replace(/([A-Z])/g, " $1")
+    .trim();
 }
 
 render();

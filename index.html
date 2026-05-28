@@ -8,6 +8,29 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <section class="login-screen" id="loginScreen">
+      <form class="login-card" id="loginForm">
+        <div class="brand login-brand">
+          <span class="brand-mark">GM</span>
+          <div>
+            <strong>Garage Manager</strong>
+            <small>Secure access</small>
+          </div>
+        </div>
+        <h1>Sign in</h1>
+        <label>Username <input name="username" required autocomplete="username" placeholder="admin" /></label>
+        <label>Password <input name="password" type="password" required autocomplete="current-password" placeholder="admin123" /></label>
+        <p class="form-error" id="loginError" role="alert"></p>
+        <button class="primary" type="submit">Login</button>
+        <div class="demo-logins">
+          <span>Demo users</span>
+          <code>admin / admin123</code>
+          <code>advisor / advisor123</code>
+          <code>tech / tech123</code>
+        </div>
+      </form>
+    </section>
+
     <div class="app-shell">
       <aside class="sidebar" aria-label="Main navigation">
         <div class="brand">
@@ -24,6 +47,7 @@
           <button data-view="technicians" title="Technicians">Technicians</button>
           <button data-view="inventory" title="Inventory">Inventory</button>
           <button data-view="invoices" title="Invoices">Invoices</button>
+          <button data-view="users" title="Users" data-permission="manageUsers">Users</button>
         </nav>
       </aside>
 
@@ -38,6 +62,8 @@
               <span>Search</span>
               <input id="searchInput" type="search" placeholder="Plate, customer, job..." />
             </label>
+            <div class="user-chip" id="userChip"></div>
+            <button class="secondary" id="logoutButton" type="button">Logout</button>
             <button class="icon-button" id="resetData" title="Reset sample data" aria-label="Reset sample data">R</button>
           </div>
         </header>
@@ -48,7 +74,7 @@
             <section class="panel wide">
               <div class="panel-head">
                 <h2>Today in the garage</h2>
-                <button class="primary" data-open="jobDialog">+ Job</button>
+                <button class="primary" data-open="jobDialog" data-permission="manageJobs">+ Job</button>
               </div>
               <div class="timeline" id="todayJobs"></div>
             </section>
@@ -65,7 +91,7 @@
         <section class="view" id="jobsView">
           <div class="section-head">
             <h2>Repair jobs</h2>
-            <button class="primary" data-open="jobDialog">+ New job</button>
+            <button class="primary" data-open="jobDialog" data-permission="manageJobs">+ New job</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -88,7 +114,7 @@
         <section class="view" id="customersView">
           <div class="section-head">
             <h2>Customers and vehicles</h2>
-            <button class="primary" data-open="customerDialog">+ Customer</button>
+            <button class="primary" data-open="customerDialog" data-permission="manageCustomers">+ Customer</button>
           </div>
           <div class="cards-grid" id="customersGrid"></div>
         </section>
@@ -96,7 +122,7 @@
         <section class="view" id="techniciansView">
           <div class="section-head">
             <h2>Technician time clock</h2>
-            <button class="primary" data-open="technicianDialog">+ Technician</button>
+            <button class="primary" data-open="technicianDialog" data-permission="manageTechnicians">+ Technician</button>
           </div>
           <div class="technician-grid" id="techniciansGrid"></div>
           <section class="panel shift-panel">
@@ -124,7 +150,7 @@
         <section class="view" id="inventoryView">
           <div class="section-head">
             <h2>Parts inventory</h2>
-            <button class="primary" data-open="partDialog">+ Part</button>
+            <button class="primary" data-open="partDialog" data-permission="manageInventory">+ Part</button>
           </div>
           <div class="table-wrap">
             <table>
@@ -146,9 +172,17 @@
         <section class="view" id="invoicesView">
           <div class="section-head">
             <h2>Invoices</h2>
-            <button class="primary" data-open="invoiceDialog">+ Invoice</button>
+            <button class="primary" data-open="invoiceDialog" data-permission="manageInvoices">+ Invoice</button>
           </div>
           <div class="cards-grid" id="invoicesGrid"></div>
+        </section>
+
+        <section class="view" id="usersView">
+          <div class="section-head">
+            <h2>Users and privileges</h2>
+            <button class="primary" data-open="userDialog" data-permission="manageUsers">+ User</button>
+          </div>
+          <div class="cards-grid" id="usersGrid"></div>
         </section>
       </main>
     </div>
@@ -243,6 +277,26 @@
         <menu>
           <button value="cancel" class="secondary">Cancel</button>
           <button class="primary" value="default">Save invoice</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="userDialog">
+      <form method="dialog" id="userForm" class="dialog-form">
+        <h2>New user</h2>
+        <label>Name <input name="name" required placeholder="User name" /></label>
+        <label>Username <input name="username" required placeholder="username" /></label>
+        <label>Password <input name="password" required placeholder="temporary password" /></label>
+        <label>Role
+          <select name="role">
+            <option value="admin">Admin</option>
+            <option value="advisor">Service advisor</option>
+            <option value="technician">Technician</option>
+          </select>
+        </label>
+        <menu>
+          <button value="cancel" class="secondary">Cancel</button>
+          <button class="primary" value="default">Save user</button>
         </menu>
       </form>
     </dialog>
