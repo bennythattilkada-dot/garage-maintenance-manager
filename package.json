@@ -1,0 +1,19 @@
+{
+  "name": "garage-maintenance-manager",
+  "version": "1.0.0",
+  "description": "A lightweight garage maintenance management app for repair jobs, customers, inventory, and invoices.",
+  "private": true,
+  "scripts": {
+    "start": "py -m http.server 4173 --bind 127.0.0.1",
+    "start:python": "python -m http.server 4173 --bind 127.0.0.1"
+  },
+  "keywords": [
+    "garage",
+    "maintenance",
+    "workshop",
+    "inventory",
+    "invoices"
+  ],
+  "author": "",
+  "license": "UNLICENSED"
+}

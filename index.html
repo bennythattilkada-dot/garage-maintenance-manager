@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Garage maintenance software for jobs, vehicles, parts, and invoices." />
+    <title>Garage Maintenance Manager</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Main navigation">
+        <div class="brand">
+          <span class="brand-mark">GM</span>
+          <div>
+            <strong>Garage Manager</strong>
+            <small>Maintenance desk</small>
+          </div>
+        </div>
+        <nav class="nav-tabs" id="navTabs">
+          <button class="active" data-view="dashboard" title="Dashboard">Dashboard</button>
+          <button data-view="jobs" title="Jobs">Jobs</button>
+          <button data-view="customers" title="Customers">Customers</button>
+          <button data-view="inventory" title="Inventory">Inventory</button>
+          <button data-view="invoices" title="Invoices">Invoices</button>
+        </nav>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Workshop operations</p>
+            <h1 id="viewTitle">Dashboard</h1>
+          </div>
+          <div class="topbar-actions">
+            <label class="search">
+              <span>Search</span>
+              <input id="searchInput" type="search" placeholder="Plate, customer, job..." />
+            </label>
+            <button class="icon-button" id="resetData" title="Reset sample data" aria-label="Reset sample data">R</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboardView">
+          <div class="metrics" id="metrics"></div>
+          <div class="dashboard-grid">
+            <section class="panel wide">
+              <div class="panel-head">
+                <h2>Today in the garage</h2>
+                <button class="primary" data-open="jobDialog">+ Job</button>
+              </div>
+              <div class="timeline" id="todayJobs"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Low stock</h2>
+                <button class="secondary" data-view-jump="inventory">Open</button>
+              </div>
+              <div class="compact-list" id="lowStock"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="jobsView">
+          <div class="section-head">
+            <h2>Repair jobs</h2>
+            <button class="primary" data-open="jobDialog">+ New job</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job</th>
+                  <th>Vehicle</th>
+                  <th>Customer</th>
+                  <th>Status</th>
+                  <th>Due</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="jobsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="customersView">
+          <div class="section-head">
+            <h2>Customers and vehicles</h2>
+            <button class="primary" data-open="customerDialog">+ Customer</button>
+          </div>
+          <div class="cards-grid" id="customersGrid"></div>
+        </section>
+
+        <section class="view" id="inventoryView">
+          <div class="section-head">
+            <h2>Parts inventory</h2>
+            <button class="primary" data-open="partDialog">+ Part</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Part</th>
+                  <th>SKU</th>
+                  <th>Qty</th>
+                  <th>Reorder</th>
+                  <th>Cost</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="partsTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="invoicesView">
+          <div class="section-head">
+            <h2>Invoices</h2>
+            <button class="primary" data-open="invoiceDialog">+ Invoice</button>
+          </div>
+          <div class="cards-grid" id="invoicesGrid"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="jobDialog">
+      <form method="dialog" id="jobForm" class="dialog-form">
+        <h2>New repair job</h2>
+        <label>Customer <input name="customer" required placeholder="Aisha Khan" /></label>
+        <label>Vehicle <input name="vehicle" required placeholder="Toyota Camry" /></label>
+        <label>Plate <input name="plate" required placeholder="D 12345" /></label>
+        <label>Service <input name="service" required placeholder="Brake inspection" /></label>
+        <div class="two-col">
+          <label>Status
+            <select name="status">
+              <option>Booked</option>
+              <option>In progress</option>
+              <option>Waiting parts</option>
+              <option>Ready</option>
+            </select>
+          </label>
+          <label>Due date <input name="due" type="date" required /></label>
+        </div>
+        <div class="two-col">
+          <label>Labor <input name="labor" type="number" min="0" step="25" value="150" /></label>
+          <label>Parts <input name="parts" type="number" min="0" step="25" value="0" /></label>
+        </div>
+        <menu>
+          <button value="cancel" class="secondary">Cancel</button>
+          <button class="primary" value="default">Save job</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="customerDialog">
+      <form method="dialog" id="customerForm" class="dialog-form">
+        <h2>New customer</h2>
+        <label>Name <input name="name" required placeholder="Customer name" /></label>
+        <label>Phone <input name="phone" required placeholder="+971..." /></label>
+        <label>Vehicle <input name="vehicle" required placeholder="Nissan Patrol" /></label>
+        <label>Plate <input name="plate" required placeholder="A 67890" /></label>
+        <menu>
+          <button value="cancel" class="secondary">Cancel</button>
+          <button class="primary" value="default">Save customer</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="partDialog">
+      <form method="dialog" id="partForm" class="dialog-form">
+        <h2>New part</h2>
+        <label>Part name <input name="name" required placeholder="Oil filter" /></label>
+        <label>SKU <input name="sku" required placeholder="FIL-204" /></label>
+        <div class="two-col">
+          <label>Quantity <input name="qty" type="number" min="0" value="10" /></label>
+          <label>Reorder at <input name="reorder" type="number" min="0" value="3" /></label>
+        </div>
+        <label>Cost <input name="cost" type="number" min="0" step="1" value="45" /></label>
+        <menu>
+          <button value="cancel" class="secondary">Cancel</button>
+          <button class="primary" value="default">Save part</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="invoiceDialog">
+      <form method="dialog" id="invoiceForm" class="dialog-form">
+        <h2>New invoice</h2>
+        <label>Customer <input name="customer" required placeholder="Customer name" /></label>
+        <label>Reference <input name="reference" required placeholder="INV-1008" /></label>
+        <div class="two-col">
+          <label>Amount <input name="amount" type="number" min="0" step="25" value="250" /></label>
+          <label>Status
+            <select name="status">
+              <option>Unpaid</option>
+              <option>Paid</option>
+              <option>Overdue</option>
+            </select>
+          </label>
+        </div>
+        <menu>
+          <button value="cancel" class="secondary">Cancel</button>
+          <button class="primary" value="default">Save invoice</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>
