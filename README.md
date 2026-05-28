@@ -7,7 +7,7 @@ A small browser-based garage maintenance app for managing workshop jobs, custome
 - Dashboard with open jobs, ready vehicles, low-stock parts, and unpaid invoices
 - User login with admin, service advisor, and technician privileges
 - Repair job tracking with status updates
-- Customer and vehicle records
+- Customer and vehicle records with selectable brand and color
 - Technician clock-in/clock-out with shift history
 - Parts inventory with low-stock warnings
 - Invoice cards with payment status

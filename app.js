@@ -18,7 +18,9 @@ const sampleData = {
     {
       id: crypto.randomUUID(),
       customer: "Aisha Khan",
-      vehicle: "Toyota Camry",
+      vehicle: "Camry",
+      brand: "Toyota",
+      color: "White",
       plate: "D 12345",
       service: "Brake pads and rotor check",
       status: "In progress",
@@ -29,7 +31,9 @@ const sampleData = {
     {
       id: crypto.randomUUID(),
       customer: "Omar Nasser",
-      vehicle: "Nissan Patrol",
+      vehicle: "Patrol",
+      brand: "Nissan",
+      color: "Black",
       plate: "A 67890",
       service: "AC diagnosis",
       status: "Waiting parts",
@@ -40,7 +44,9 @@ const sampleData = {
     {
       id: crypto.randomUUID(),
       customer: "Maya Santos",
-      vehicle: "Honda Civic",
+      vehicle: "Civic",
+      brand: "Honda",
+      color: "Silver",
       plate: "B 45112",
       service: "Oil service and inspection",
       status: "Ready",
@@ -50,9 +56,9 @@ const sampleData = {
     }
   ],
   customers: [
-    { id: crypto.randomUUID(), name: "Aisha Khan", phone: "+971 50 123 4567", vehicle: "Toyota Camry", plate: "D 12345" },
-    { id: crypto.randomUUID(), name: "Omar Nasser", phone: "+971 55 789 3021", vehicle: "Nissan Patrol", plate: "A 67890" },
-    { id: crypto.randomUUID(), name: "Maya Santos", phone: "+971 52 443 9920", vehicle: "Honda Civic", plate: "B 45112" }
+    { id: crypto.randomUUID(), name: "Aisha Khan", phone: "+971 50 123 4567", vehicle: "Camry", brand: "Toyota", color: "White", plate: "D 12345" },
+    { id: crypto.randomUUID(), name: "Omar Nasser", phone: "+971 55 789 3021", vehicle: "Patrol", brand: "Nissan", color: "Black", plate: "A 67890" },
+    { id: crypto.randomUUID(), name: "Maya Santos", phone: "+971 52 443 9920", vehicle: "Civic", brand: "Honda", color: "Silver", plate: "B 45112" }
   ],
   parts: [
     { id: crypto.randomUUID(), name: "Brake pads", sku: "BRK-110", qty: 4, reorder: 3, cost: 210 },
@@ -101,6 +107,8 @@ function loadState() {
   loaded.technicians = loaded.technicians || structuredClone(sampleData.technicians);
   loaded.shifts = loaded.shifts || [];
   loaded.users = loaded.users || structuredClone(sampleData.users);
+  loaded.jobs = loaded.jobs.map(normalizeVehicleRecord);
+  loaded.customers = loaded.customers.map(normalizeVehicleRecord);
   return loaded;
 }
 
@@ -209,7 +217,7 @@ function renderMetrics() {
 
 function renderTodayJobs() {
   const today = new Date().toISOString().slice(0, 10);
-  const jobs = state.jobs.filter((job) => job.due === today && matchesSearch(job.customer, job.vehicle, job.plate, job.service));
+  const jobs = state.jobs.filter((job) => job.due === today && matchesSearch(job.customer, getVehicleLabel(job), job.plate, job.service));
   document.querySelector("#todayJobs").innerHTML = jobs.length
     ? jobs
         .map(
@@ -217,7 +225,7 @@ function renderTodayJobs() {
           <article class="timeline-item">
             <div>
               <strong>${job.service}</strong>
-              <p class="meta">${job.vehicle} / ${job.plate} / ${job.customer}</p>
+              <p class="meta">${getVehicleLabel(job)} / ${job.plate} / ${job.customer}</p>
             </div>
             <span class="pill ${statusClass(job.status)}">${job.status}</span>
           </article>`
@@ -245,14 +253,14 @@ function renderLowStock() {
 }
 
 function renderJobs() {
-  const jobs = state.jobs.filter((job) => matchesSearch(job.customer, job.vehicle, job.plate, job.service, job.status));
+  const jobs = state.jobs.filter((job) => matchesSearch(job.customer, getVehicleLabel(job), job.plate, job.service, job.status));
   document.querySelector("#jobsTable").innerHTML = jobs.length
     ? jobs
         .map(
           (job) => `
         <tr>
           <td><strong>${job.service}</strong><br /><small>${job.id.slice(0, 8)}</small></td>
-          <td>${job.vehicle}<br /><small>${job.plate}</small></td>
+          <td>${getVehicleLabel(job)}<br /><small>${job.color} / ${job.plate}</small></td>
           <td>${job.customer}</td>
           <td><span class="pill ${statusClass(job.status)}">${job.status}</span></td>
           <td>${job.due}</td>
@@ -270,7 +278,7 @@ function renderJobs() {
 }
 
 function renderCustomers() {
-  const customers = state.customers.filter((customer) => matchesSearch(customer.name, customer.phone, customer.vehicle, customer.plate));
+  const customers = state.customers.filter((customer) => matchesSearch(customer.name, customer.phone, getVehicleLabel(customer), customer.color, customer.plate));
   document.querySelector("#customersGrid").innerHTML = customers.length
     ? customers
         .map(
@@ -279,9 +287,10 @@ function renderCustomers() {
           <h3>${customer.name}</h3>
           <p class="meta">${customer.phone}</p>
           <div class="card-footer">
-            <span>${customer.vehicle}</span>
+            <span>${getVehicleLabel(customer)}</span>
             <span class="pill blue">${customer.plate}</span>
           </div>
+          <p class="meta">${customer.color}</p>
         </article>`
         )
         .join("")
@@ -474,7 +483,7 @@ document.querySelector("#jobForm").addEventListener("submit", (event) => {
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   state.jobs.unshift({ id: crypto.randomUUID(), ...data, labor: Number(data.labor), parts: Number(data.parts) });
-  upsertCustomer(data.customer, "", data.vehicle, data.plate);
+  upsertCustomer(data.customer, "", data.vehicle, data.plate, data.brand, data.color);
   saveState();
   form.reset();
   render();
@@ -484,7 +493,7 @@ document.querySelector("#customerForm").addEventListener("submit", (event) => {
   if (!can("manageCustomers")) return;
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
-  upsertCustomer(data.name, data.phone, data.vehicle, data.plate);
+  upsertCustomer(data.name, data.phone, data.vehicle, data.plate, data.brand, data.color);
   saveState();
   form.reset();
   render();
@@ -557,15 +566,34 @@ function canOpenDialog(dialogId) {
   return can(permissions[dialogId]);
 }
 
-function upsertCustomer(name, phone, vehicle, plate) {
+function upsertCustomer(name, phone, vehicle, plate, brand, color) {
   const existing = state.customers.find((customer) => customer.name.toLowerCase() === name.toLowerCase() && customer.plate === plate);
   if (existing) {
     existing.phone = phone || existing.phone;
     existing.vehicle = vehicle;
+    existing.brand = brand || existing.brand || "Other";
+    existing.color = color || existing.color || "Other";
     existing.plate = plate;
     return;
   }
-  state.customers.unshift({ id: crypto.randomUUID(), name, phone: phone || "Not recorded", vehicle, plate });
+  state.customers.unshift({ id: crypto.randomUUID(), name, phone: phone || "Not recorded", vehicle, brand, color, plate });
+}
+
+function normalizeVehicleRecord(record) {
+  const copy = { ...record };
+  if (!copy.brand) {
+    const parts = String(copy.vehicle || "").split(" ");
+    const possibleBrand = parts[0] || "Other";
+    const knownBrands = ["Toyota", "Nissan", "Honda", "Ford", "BMW", "Mercedes-Benz", "Hyundai", "Kia", "Lexus"];
+    copy.brand = knownBrands.includes(possibleBrand) ? possibleBrand : "Other";
+    copy.vehicle = knownBrands.includes(possibleBrand) && parts.length > 1 ? parts.slice(1).join(" ") : copy.vehicle || "Vehicle";
+  }
+  copy.color = copy.color || "Other";
+  return copy;
+}
+
+function getVehicleLabel(record) {
+  return `${record.brand || "Other"} ${record.vehicle || "Vehicle"}`.trim();
 }
 
 function advanceJob(id) {
