@@ -205,7 +205,8 @@ h2 {
 .panel,
 .table-wrap,
 .customer-card,
-.invoice-card {
+.invoice-card,
+.technician-card {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -245,7 +246,8 @@ td small {
 
 .timeline,
 .compact-list,
-.cards-grid {
+.cards-grid,
+.technician-grid {
   display: grid;
   gap: 10px;
 }
@@ -335,14 +337,51 @@ tr:last-child td {
 }
 
 .customer-card,
-.invoice-card {
+.invoice-card,
+.technician-card {
   padding: 16px;
 }
 
 .customer-card h3,
-.invoice-card h3 {
+.invoice-card h3,
+.technician-card h3 {
   margin: 0 0 8px;
   font-size: 1rem;
+}
+
+.technician-grid {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-bottom: 14px;
+}
+
+.technician-card {
+  display: grid;
+  gap: 14px;
+}
+
+.technician-card.clocked-in {
+  border-color: rgba(22, 97, 79, 0.36);
+  background: linear-gradient(180deg, #ffffff 0%, #f1faf7 100%);
+}
+
+.technician-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.time-stack {
+  display: grid;
+  gap: 4px;
+}
+
+.time-stack strong {
+  font-size: 1.35rem;
+}
+
+.shift-panel {
+  margin-top: 14px;
 }
 
 .card-footer {
@@ -426,7 +465,7 @@ menu {
   }
 
   .nav-tabs {
-    grid-template-columns: repeat(5, minmax(84px, 1fr));
+    grid-template-columns: repeat(6, minmax(92px, 1fr));
     overflow-x: auto;
   }
 

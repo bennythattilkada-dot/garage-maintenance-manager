@@ -21,6 +21,7 @@
           <button class="active" data-view="dashboard" title="Dashboard">Dashboard</button>
           <button data-view="jobs" title="Jobs">Jobs</button>
           <button data-view="customers" title="Customers">Customers</button>
+          <button data-view="technicians" title="Technicians">Technicians</button>
           <button data-view="inventory" title="Inventory">Inventory</button>
           <button data-view="invoices" title="Invoices">Invoices</button>
         </nav>
@@ -90,6 +91,34 @@
             <button class="primary" data-open="customerDialog">+ Customer</button>
           </div>
           <div class="cards-grid" id="customersGrid"></div>
+        </section>
+
+        <section class="view" id="techniciansView">
+          <div class="section-head">
+            <h2>Technician time clock</h2>
+            <button class="primary" data-open="technicianDialog">+ Technician</button>
+          </div>
+          <div class="technician-grid" id="techniciansGrid"></div>
+          <section class="panel shift-panel">
+            <div class="panel-head">
+              <h2>Recent shifts</h2>
+              <span class="meta" id="shiftSummary"></span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Technician</th>
+                    <th>Clock in</th>
+                    <th>Clock out</th>
+                    <th>Hours</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="shiftsTable"></tbody>
+              </table>
+            </div>
+          </section>
         </section>
 
         <section class="view" id="inventoryView">
@@ -163,6 +192,18 @@
         <menu>
           <button value="cancel" class="secondary">Cancel</button>
           <button class="primary" value="default">Save customer</button>
+        </menu>
+      </form>
+    </dialog>
+
+    <dialog id="technicianDialog">
+      <form method="dialog" id="technicianForm" class="dialog-form">
+        <h2>New technician</h2>
+        <label>Name <input name="name" required placeholder="Technician name" /></label>
+        <label>Specialty <input name="specialty" required placeholder="Diagnostics" /></label>
+        <menu>
+          <button value="cancel" class="secondary">Cancel</button>
+          <button class="primary" value="default">Save technician</button>
         </menu>
       </form>
     </dialog>

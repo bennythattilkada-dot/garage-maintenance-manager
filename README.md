@@ -7,6 +7,7 @@ A small browser-based garage maintenance app for managing workshop jobs, custome
 - Dashboard with open jobs, ready vehicles, low-stock parts, and unpaid invoices
 - Repair job tracking with status updates
 - Customer and vehicle records
+- Technician clock-in/clock-out with shift history
 - Parts inventory with low-stock warnings
 - Invoice cards with payment status
 - Search across the active data
@@ -40,9 +41,9 @@ python -m http.server 4173 --bind 127.0.0.1
 
 - `index.html` contains the application layout and dialogs.
 - `styles.css` contains the responsive interface styling.
-- `app.js` contains the app state, rendering, localStorage persistence, and interactions.
+- `app.js` contains the app state, rendering, localStorage persistence, time clock, and interactions.
 - `run.ps1` starts a local development server.
 
 ## Notes
 
-This is a front-end MVP. Data is stored in the current browser with `localStorage`. For a production garage system, the next step would be a backend database, user login, job history, printable invoices, and backups.
+This is a front-end MVP. Data is stored in the current browser with `localStorage`. For a production garage system, the next step would be a backend database, user login, job history, technician payroll reports, printable invoices, and backups.

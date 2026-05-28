@@ -49,6 +49,20 @@ const sampleData = {
   invoices: [
     { id: crypto.randomUUID(), customer: "Maya Santos", reference: "INV-1005", amount: 215, status: "Paid" },
     { id: crypto.randomUUID(), customer: "Aisha Khan", reference: "INV-1006", amount: 770, status: "Unpaid" }
+  ],
+  technicians: [
+    { id: crypto.randomUUID(), name: "Ravi Menon", specialty: "Diagnostics" },
+    { id: crypto.randomUUID(), name: "Salim Farooq", specialty: "Mechanical" },
+    { id: crypto.randomUUID(), name: "Joel D'Souza", specialty: "Electrical" }
+  ],
+  shifts: [
+    {
+      id: crypto.randomUUID(),
+      technicianId: "sample-tech-closed",
+      technicianName: "Ravi Menon",
+      clockIn: new Date(Date.now() - 28800000).toISOString(),
+      clockOut: new Date(Date.now() - 10800000).toISOString()
+    }
   ]
 };
 
@@ -64,7 +78,10 @@ const money = new Intl.NumberFormat("en-AE", {
 
 function loadState() {
   const saved = localStorage.getItem(storageKey);
-  return saved ? JSON.parse(saved) : structuredClone(sampleData);
+  const loaded = saved ? JSON.parse(saved) : structuredClone(sampleData);
+  loaded.technicians = loaded.technicians || structuredClone(sampleData.technicians);
+  loaded.shifts = loaded.shifts || [];
+  return loaded;
 }
 
 function saveState() {
@@ -100,6 +117,7 @@ function render() {
   renderLowStock();
   renderJobs();
   renderCustomers();
+  renderTechnicians();
   renderParts();
   renderInvoices();
 }
@@ -107,7 +125,7 @@ function render() {
 function renderMetrics() {
   const openJobs = state.jobs.filter((job) => job.status !== "Ready").length;
   const readyJobs = state.jobs.filter((job) => job.status === "Ready").length;
-  const lowParts = state.parts.filter((part) => Number(part.qty) <= Number(part.reorder)).length;
+  const activeTechnicians = state.shifts.filter((shift) => !shift.clockOut).length;
   const unpaid = state.invoices
     .filter((invoice) => invoice.status !== "Paid")
     .reduce((sum, invoice) => sum + Number(invoice.amount), 0);
@@ -115,7 +133,7 @@ function renderMetrics() {
   document.querySelector("#metrics").innerHTML = [
     ["Open jobs", openJobs],
     ["Ready vehicles", readyJobs],
-    ["Low-stock parts", lowParts],
+    ["Clocked in", activeTechnicians],
     ["Unpaid invoices", money.format(unpaid)]
   ]
     .map(([label, value]) => `<article class="metric"><span>${label}</span><strong>${value}</strong></article>`)
@@ -203,6 +221,61 @@ function renderCustomers() {
     : `<div class="empty">No matching customers.</div>`;
 }
 
+function renderTechnicians() {
+  const technicians = state.technicians.filter((technician) => matchesSearch(technician.name, technician.specialty));
+  document.querySelector("#techniciansGrid").innerHTML = technicians.length
+    ? technicians
+        .map((technician) => {
+          const activeShift = getActiveShift(technician.id);
+          const workedToday = getTechnicianHoursToday(technician.id);
+          return `
+        <article class="technician-card ${activeShift ? "clocked-in" : ""}">
+          <div class="technician-status">
+            <div>
+              <h3>${technician.name}</h3>
+              <p class="meta">${technician.specialty}</p>
+            </div>
+            <span class="pill ${activeShift ? "" : "blue"}">${activeShift ? "Clocked in" : "Off duty"}</span>
+          </div>
+          <div class="time-stack">
+            <span class="meta">${activeShift ? "Current shift" : "Hours today"}</span>
+            <strong>${activeShift ? formatDuration(Date.now() - new Date(activeShift.clockIn).getTime()) : formatHours(workedToday)}</strong>
+            <span class="meta">${activeShift ? `Since ${formatDateTime(activeShift.clockIn)}` : "No active shift"}</span>
+          </div>
+          <button class="${activeShift ? "secondary" : "primary"}" data-${activeShift ? "clock-out" : "clock-in"}="${technician.id}">
+            ${activeShift ? "Clock out" : "Clock in"}
+          </button>
+        </article>`;
+        })
+        .join("")
+    : `<div class="empty">No matching technicians.</div>`;
+
+  renderShifts();
+}
+
+function renderShifts() {
+  const shifts = state.shifts
+    .filter((shift) => matchesSearch(shift.technicianName, shift.clockOut ? "completed" : "active"))
+    .slice()
+    .sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
+  const totalHours = shifts.reduce((sum, shift) => sum + getShiftHours(shift), 0);
+  document.querySelector("#shiftSummary").textContent = `${formatHours(totalHours)} shown`;
+  document.querySelector("#shiftsTable").innerHTML = shifts.length
+    ? shifts
+        .map(
+          (shift) => `
+        <tr>
+          <td><strong>${shift.technicianName}</strong></td>
+          <td>${formatDateTime(shift.clockIn)}</td>
+          <td>${shift.clockOut ? formatDateTime(shift.clockOut) : "Still working"}</td>
+          <td>${formatHours(getShiftHours(shift))}</td>
+          <td><span class="pill ${shift.clockOut ? "blue" : ""}">${shift.clockOut ? "Completed" : "Active"}</span></td>
+        </tr>`
+        )
+        .join("")
+    : `<tr><td colspan="5"><div class="empty">No matching shifts.</div></td></tr>`;
+}
+
 function renderParts() {
   const parts = state.parts.filter((part) => matchesSearch(part.name, part.sku));
   document.querySelector("#partsTable").innerHTML = parts.length
@@ -258,6 +331,8 @@ document.body.addEventListener("click", (event) => {
   const deleteJob = event.target.closest("[data-delete-job]");
   const addPart = event.target.closest("[data-add-part]");
   const usePart = event.target.closest("[data-use-part]");
+  const clockIn = event.target.closest("[data-clock-in]");
+  const clockOut = event.target.closest("[data-clock-out]");
 
   if (openButton) document.querySelector(`#${openButton.dataset.open}`).showModal();
   if (jumpButton) setView(jumpButton.dataset.viewJump);
@@ -265,6 +340,8 @@ document.body.addEventListener("click", (event) => {
   if (deleteJob) deleteJobById(deleteJob.dataset.deleteJob);
   if (addPart) adjustPart(addPart.dataset.addPart, 1);
   if (usePart) adjustPart(usePart.dataset.usePart, -1);
+  if (clockIn) clockInTechnician(clockIn.dataset.clockIn);
+  if (clockOut) clockOutTechnician(clockOut.dataset.clockOut);
 });
 
 document.querySelector("#searchInput").addEventListener("input", (event) => {
@@ -313,6 +390,15 @@ document.querySelector("#partForm").addEventListener("submit", (event) => {
   render();
 });
 
+document.querySelector("#technicianForm").addEventListener("submit", (event) => {
+  const form = event.currentTarget;
+  const data = Object.fromEntries(new FormData(form));
+  state.technicians.unshift({ id: crypto.randomUUID(), name: data.name, specialty: data.specialty });
+  saveState();
+  form.reset();
+  render();
+});
+
 document.querySelector("#invoiceForm").addEventListener("submit", (event) => {
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
@@ -355,6 +441,65 @@ function adjustPart(id, amount) {
   part.qty = Math.max(0, Number(part.qty) + amount);
   saveState();
   render();
+}
+
+function getActiveShift(technicianId) {
+  return state.shifts.find((shift) => shift.technicianId === technicianId && !shift.clockOut);
+}
+
+function clockInTechnician(technicianId) {
+  if (getActiveShift(technicianId)) return;
+  const technician = state.technicians.find((item) => item.id === technicianId);
+  if (!technician) return;
+  state.shifts.unshift({
+    id: crypto.randomUUID(),
+    technicianId,
+    technicianName: technician.name,
+    clockIn: new Date().toISOString(),
+    clockOut: null
+  });
+  saveState();
+  render();
+}
+
+function clockOutTechnician(technicianId) {
+  const activeShift = getActiveShift(technicianId);
+  if (!activeShift) return;
+  activeShift.clockOut = new Date().toISOString();
+  saveState();
+  render();
+}
+
+function getTechnicianHoursToday(technicianId) {
+  const today = new Date().toISOString().slice(0, 10);
+  return state.shifts
+    .filter((shift) => shift.technicianId === technicianId && shift.clockIn.slice(0, 10) === today)
+    .reduce((sum, shift) => sum + getShiftHours(shift), 0);
+}
+
+function getShiftHours(shift) {
+  const endTime = shift.clockOut ? new Date(shift.clockOut).getTime() : Date.now();
+  return Math.max(0, (endTime - new Date(shift.clockIn).getTime()) / 3600000);
+}
+
+function formatHours(hours) {
+  return `${hours.toFixed(2)} hrs`;
+}
+
+function formatDuration(milliseconds) {
+  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+}
+
+function formatDateTime(value) {
+  return new Intl.DateTimeFormat("en-AE", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 render();
